@@ -13,8 +13,7 @@ import {
   ArrowRight, 
   Zap,
   Server,
-  Database,
-  Cpu
+  Database
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8080/api';
@@ -188,7 +187,7 @@ export default function App() {
               transition: 'all 0.2s'
             }}
           >
-            <RefreshCw size={13} className={autoRefresh ? 'spin-anim' : ''} />
+            <RefreshCw size={13} />
             {autoRefresh ? 'Live Sync (2s)' : 'Sync Paused'}
           </button>
         </div>
