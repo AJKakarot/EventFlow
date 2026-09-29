@@ -1,171 +1,181 @@
-# EventFlow 🚀
+# ⚡ EventFlow — Real-Time Event-Driven Microservices Platform
 
-**EventFlow** is an event-driven backend platform built with **Spring Boot 4.x / Java 21** and **PostgreSQL**, architected to support asynchronous messaging and high-throughput distributed workflows.
+**EventFlow** is an enterprise-grade, event-driven e-commerce platform built with **Spring Boot 4.x / Java 21+**, **Apache Kafka**, **PostgreSQL (Neon Cloud)**, and **React (Vite)**. It demonstrates event choreography, asynchronous decoupled microservices, independent Kafka consumer groups, and real-time dashboard observability.
 
 ---
 
-## 🏗️ Architecture & Modules
+## 🏛️ Event Choreography Architecture
 
-EventFlow follows a clean, layered architecture across all its core domain modules:
-
-```text
-Client / Swagger UI
-        │
-        ▼
-   Controller       (com.eventflow.controller)
-        │
-        ▼
-     Service        (com.eventflow.service)
-        │
-        ▼
-   Repository       (com.eventflow.repository - Spring Data JPA)
-        │
-        ▼
-    Hibernate ──► PostgreSQL
+```
+                                [ POST /api/orders ]
+                                          │
+                                          ▼
+                                   ┌──────────────┐
+                                   │ OrderService │ ──► (PostgreSQL: orders)
+                                   └──────────────┘
+                                          │
+                                   [order-events] (Kafka Topic)
+                                          │
+                                          ▼
+                             ┌────────────────────────┐
+                             │  PaymentEventConsumer  │ (group: payment-service)
+                             └────────────────────────┘
+                                          │
+                                          ▼
+                                   ┌──────────────┐
+                                   │PaymentService│ ──► (PostgreSQL: payments)
+                                   └──────────────┘
+                                          │
+                                  [payment-events] (Kafka Topic - Fan Out)
+                                          │
+                       ┌──────────────────┴──────────────────┐
+                       ▼                                     ▼
+          ┌─────────────────────────┐           ┌────────────────────────┐
+          │NotificationEventConsumer│           │ AnalyticsEventConsumer │
+          │(group: notification-svc)│           │ (group: analytics-svc) │
+          └─────────────────────────┘           └────────────────────────┘
+                       │                                     │
+                       ▼                                     ▼
+             ┌───────────────────┐                 ┌──────────────────┐
+             │NotificationService│                 │ AnalyticsService │
+             └───────────────────┘                 └──────────────────┘
+                       │                                     │
+                       ▼                                     ▼
+           (PostgreSQL: notifications)             (PostgreSQL: analytics)
 ```
 
-### Core Domain Modules
+---
 
-| Module | Base Path | Description |
-| :--- | :--- | :--- |
-| **Order** | `/api/orders` | Manages order creation, catalog items, and order status |
-| **Payment** | `/api/payments` | Handles transaction records, payment processing, and status |
-| **Notification** | `/api/notifications` | Manages alert dispatches, messages, and delivery states |
-| **Analytics** | `/api/analytics` | Captures and logs system-wide events and timestamps |
+## 🚀 Key Features
+
+- **⚡ Loose Coupling & Asynchronous Messaging:** Services communicate solely via Kafka event streams without direct synchronous HTTP dependencies.
+- **🔄 Event Fan-Out (Pub-Sub):** `payment-events` topic is consumed concurrently by independent consumer groups (`notification-service` and `analytics-service`).
+- **🗄️ Relational Persistence:** Connected to cloud-hosted **PostgreSQL (Neon Cloud)** via Spring Data JPA & Hibernate.
+- **🖥️ React Live Observability Dashboard:** Real-time metrics, interactive Order simulator, visual choreography map, and live data tables.
+- **📖 API Documentation:** Interactive Swagger / OpenAPI 3 UI on Spring Boot.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Language:** Java 21
-- **Framework:** Spring Boot 4.1.1
-- **Data Access:** Spring Data JPA & Hibernate
-- **Database:** PostgreSQL
-- **API Documentation:** SpringDoc OpenAPI / Swagger UI
-- **Build Tool:** Apache Maven
+| Layer | Technology |
+| :--- | :--- |
+| **Backend** | Spring Boot 4.1.1, Java 21 / Java 25 |
+| **Event Streaming** | Apache Kafka 4.x, Spring Kafka |
+| **Database** | PostgreSQL (Neon Cloud), Spring Data JPA, Hibernate |
+| **JSON Serialization** | Jackson `ObjectMapper` |
+| **Frontend UI** | React 19, Vite, Lucide React, Glassmorphism CSS |
+| **Containerization** | Docker, Docker Compose |
+| **API Specs** | SpringDoc OpenAPI 3 / Swagger UI |
+
+---
+
+## 📡 Kafka Topics & Event Schemas
+
+### 1. `order-events`
+Published when an order is created.
+```json
+{
+  "orderId": 19,
+  "amount": 1800.00,
+  "status": "CREATED"
+}
+```
+
+### 2. `payment-events`
+Published after payment is processed and saved in the database.
+```json
+{
+  "orderId": 19,
+  "amount": 1800.00,
+  "status": "SUCCESS"
+}
+```
 
 ---
 
 ## 📁 Project Structure
 
 ```text
-src/main/java/com/eventflow/
-├── controller/
-│   ├── AnalyticsController.java
-│   ├── NotificationController.java
-│   ├── OrderController.java
-│   └── PaymentController.java
-├── service/
-│   ├── AnalyticsService.java
-│   ├── NotificationService.java
-│   ├── OrderService.java
-│   └── PaymentService.java
-├── repository/
-│   ├── AnalyticsRepository.java
-│   ├── NotificationRepository.java
-│   ├── OrderRepository.java
-│   └── PaymentRepository.java
-├── entity/
-│   ├── Analytics.java
-│   ├── Notification.java
-│   ├── Order.java
-│   └── Payment.java
-└── EventflowApplication.java
+eventflow/
+├── docker-compose.yml                      # Kafka & Zookeeper/KRaft container config
+├── pom.xml                                 # Maven dependencies & plugins
+├── frontend/                               # React + Vite Observability Dashboard
+│   ├── src/
+│   │   ├── App.jsx                         # Main Dashboard Component & Live Pipeline
+│   │   └── index.css                       # Glassmorphic Design System
+│   └── package.json
+└── src/main/java/com/eventflow/
+    ├── EventflowApplication.java
+    ├── config/
+    │   ├── CorsConfig.java                 # Global CORS config for React UI
+    │   ├── JacksonConfig.java              # ObjectMapper bean configuration
+    │   ├── KafkaConsumerConfig.java        # Kafka Consumer Factory & Listener Container
+    │   └── KafkaProducerConfig.java        # Kafka Producer Factory & KafkaTemplate
+    ├── controller/
+    │   ├── AnalyticsController.java
+    │   ├── NotificationController.java
+    │   ├── OrderController.java
+    │   └── PaymentController.java
+    ├── entity/
+    │   ├── Analytics.java
+    │   ├── Notification.java
+    │   ├── Order.java
+    │   └── Payment.java
+    ├── kafka/
+    │   ├── AnalyticsEventConsumer.java     # groupId: analytics-service
+    │   ├── NotificationEventConsumer.java  # groupId: notification-service
+    │   ├── OrderEventProducer.java         # produces to: order-events
+    │   ├── PaymentEventConsumer.java       # groupId: payment-service
+    │   └── PaymentEventProducer.java       # produces to: payment-events
+    ├── repository/
+    │   ├── AnalyticsRepository.java
+    │   ├── NotificationRepository.java
+    │   ├── OrderRepository.java
+    │   └── PaymentRepository.java
+    └── service/
+        ├── AnalyticsService.java
+        ├── NotificationService.java
+        ├── OrderService.java
+        └── PaymentService.java
 ```
 
 ---
 
-## 📡 REST API Endpoints
+## ⚡ Quickstart Guide
 
-### 1. Orders
-- `POST /api/orders` — Create a new order
-  ```json
-  {
-    "productName": "MacBook Pro",
-    "amount": 1999.99,
-    "status": "CREATED"
-  }
-  ```
-- `GET /api/orders` — Fetch all orders
+### 1. Start Kafka Cluster
+```bash
+docker-compose up -d
+```
 
-### 2. Payments
-- `POST /api/payments` — Record a payment
-  ```json
-  {
-    "orderId": 1,
-    "amount": 1999.99,
-    "status": "COMPLETED"
-  }
-  ```
-- `GET /api/payments` — Fetch all payments
+### 2. Run Spring Boot Backend
+```bash
+./mvnw spring-boot:run
+```
+- API Base URL: `http://localhost:8080/api`
+- Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-### 3. Notifications
-- `POST /api/notifications` — Create/send a notification
-  ```json
-  {
-    "orderId": 1,
-    "type": "EMAIL",
-    "message": "Your order #1 has been confirmed!",
-    "status": "SENT"
-  }
-  ```
-- `GET /api/notifications` — Fetch all notifications
-
-### 4. Analytics
-- `POST /api/analytics` — Log an analytics event
-  ```json
-  {
-    "orderId": 1,
-    "eventType": "ORDER_CREATED",
-    "timestamp": "2026-09-21T02:00:00"
-  }
-  ```
-- `GET /api/analytics` — Fetch all analytics records
+### 3. Run React Frontend Dashboard
+```bash
+cd frontend
+npm install
+npm run dev
+```
+- Dashboard UI: [http://localhost:5174](http://localhost:5174)
 
 ---
 
-## 🚀 Getting Started
+## 🗺️ Upcoming Roadmap
 
-### Prerequisites
-- **JDK 21** or later installed
-- **PostgreSQL** instance running (or Neon PostgreSQL cloud database)
-
-### Setup & Run
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/AJKakarot/EventFlow.git
-   cd EventFlow
-   ```
-
-2. **Configure Database Connection:**
-   Update `src/main/resources/application.yaml` with your database credentials:
-   ```yaml
-   spring:
-     datasource:
-       url: jdbc:postgresql://<host>:<port>/<database>?sslmode=require
-       username: <username>
-       password: <password>
-     jpa:
-       hibernate:
-         ddl-auto: update
-       show-sql: true
-   ```
-
-3. **Build and Run:**
-   ```bash
-   ./mvnw spring-boot:run
-   ```
-
-4. **Explore the APIs:**
-   - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-   - OpenAPI Specs: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+- [ ] **Idempotent Consumers:** Duplicate event detection & prevention.
+- [ ] **Resilience:** Retry Mechanism & Dead Letter Queue (DLQ / DLT).
+- [ ] **Redis Layer:** Distributed caching & Token Bucket Rate Limiting.
+- [ ] **WebSocket:** Full duplex live push event updates.
+- [ ] **Cloud Deployment:** AWS ECS / EKS Deployment & CI/CD Pipeline.
 
 ---
 
-## 🗺️ Roadmap
+## 📄 License
 
-- [ ] **Apache Kafka:** Asynchronous event streaming across Order, Payment, Notification, and Analytics.
-- [ ] **Redis:** Distributed caching and pub/sub message brokers.
-- [ ] **WebSocket:** Real-time push notifications to clients.
-- [ ] **Security & Auth:** JWT-based authentication and role-based authorization.
+MIT © [Ajeet / EventFlow](https://github.com/AJKakarot/EventFlow)
